@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Book {
+  id          String   @id @default(cuid())
+  title       String
+  author      String?
+  imageUrl    String?
+  isbn        String?  @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  entries   Entry[]
+  userBooks UserBook[]
+
+  @@map("books")
+}
+
+model UserBook {
+  id        String   @id @default(cuid())
+  userId    String
+  bookId    String
+  status    ReadingStatus
+  startDate DateTime?
+  endDate   DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bookId])
+  @@map("user_books")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userBooks UserBook[]
+  entries   Entry[]
+
+  @@map("users")
+}
+
+model Entry {
+  id        String   @id @default(cuid())
+  content   String
+  userId    String
+  bookId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@map("entries")
+}
+
+enum ReadingStatus {
+  WANT_TO_READ
+  READING
+  READ
+  DID_NOT_FINISH
+}
