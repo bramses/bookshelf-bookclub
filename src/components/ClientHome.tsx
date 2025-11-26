@@ -7,27 +7,29 @@ import BookDetail from '@/components/BookDetail';
 import { userBooks, Book } from '@/lib/data';
 
 interface ClientHomeProps {
-  initialBookSlug?: string;
+  initialBookId?: string;
   books: Book[];
 }
 
-export default function ClientHome({ initialBookSlug, books }: ClientHomeProps) {
+export default function ClientHome({ initialBookId, books }: ClientHomeProps) {
   const router = useRouter();
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
 
   useEffect(() => {
-    if (initialBookSlug) {
-      const book = books.find((b) => b.slug === initialBookSlug);
+    if (initialBookId) {
+      console.log('Checking initialBookId:', initialBookId);
+      const book = books.find((b) => b.id === initialBookId);
+      console.log('Found book:', book ? book.title : 'None');
       if (book) {
         setSelectedBook(book);
       }
     }
-  }, [initialBookSlug]);
+  }, [initialBookId, books]);
 
   const handleSelectBook = (book: Book) => {
     setSelectedBook(book);
     // Update URL without full reload
-    window.history.pushState(null, '', `/${book.slug}`);
+    window.history.pushState(null, '', `/book/${book.id}`);
   };
 
   const handleCloseDetail = () => {
@@ -43,7 +45,7 @@ export default function ClientHome({ initialBookSlug, books }: ClientHomeProps) 
   return (
     <main className="main-container">
       <header className="app-header">
-        <h1 className="app-title">My Bookshelf</h1>
+        <h1 className="app-title">Sixty Books a Year Book Club</h1>
         <p className="app-subtitle">A 3D exploration of my reading journey</p>
       </header>
 

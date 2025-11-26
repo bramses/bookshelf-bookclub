@@ -42,13 +42,14 @@ model UserBook {
 
 model User {
   id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
+  discordId String   @unique
+  username  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  userBooks UserBook[]
-  entries   Entry[]
+  entries       Entry[]
+  userBooks     UserBook[]
+  // conversations ConversationState[] // Commented out as ConversationState is not defined in the provided snippet, assuming it might be needed later or omitted for now if not present in DB
 
   @@map("users")
 }
@@ -68,8 +69,7 @@ model Entry {
 }
 
 enum ReadingStatus {
-  WANT_TO_READ
-  READING
-  READ
-  DID_NOT_FINISH
+  CURRENTLY_READING
+  FINISHED
+  DROPPED
 }

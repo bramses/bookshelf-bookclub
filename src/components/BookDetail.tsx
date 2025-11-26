@@ -70,32 +70,30 @@ export default function BookDetail({ book, userBook, onClose }: BookDetailProps)
           <div className="detail-content">
             <p className="detail-description">{book.description}</p>
             
-            <div className="detail-meta">
-              <div className="meta-grid">
-                <div className="meta-item">
-                  <span className="meta-label">Year</span>
-                  <span>{new Date(book.createdAt).getFullYear()}</span> {/* Mock year */}
+            {/* Readers Section */}
+            {book.userBooks && book.userBooks.length > 0 && (
+                <div className="readers-section">
+                    <h3 className="readers-title">Readers</h3>
+                    <div className="readers-list">
+                        {book.userBooks.map((ub) => (
+                            <div key={ub.id} className="reader-item">
+                                <span className="reader-name">{ub.user.username}</span>
+                                <span className="reader-status">
+                                    {ub.status === 'CURRENTLY_READING' ? (
+                                        ' is currently reading'
+                                    ) : ub.status === 'FINISHED' && ub.endDate ? (
+                                        ` finished in ${new Date(ub.endDate).toLocaleString('default', { month: 'long', year: 'numeric' })}`
+                                    ) : ub.status === 'DROPPED' ? (
+                                        ' dropped'
+                                    ) : (
+                                        ''
+                                    )}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-                <div className="meta-item">
-                  <span className="meta-label">ISBN</span>
-                  <span>{book.isbn}</span>
-                </div>
-                {userBook && (
-                    <>
-                        <div className="meta-item">
-                        <span className="meta-label">Status</span>
-                        <span className={`status-badge ${userBook.status.toLowerCase()}`}>
-                            {userBook.status.replace(/_/g, ' ').toLowerCase()}
-                        </span>
-                        </div>
-                         <div className="meta-item">
-                        <span className="meta-label">Read Date</span>
-                        <span>{userBook.endDate ? userBook.endDate.toLocaleDateString() : 'N/A'}</span>
-                        </div>
-                    </>
-                )}
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

@@ -4,12 +4,13 @@ import { getBooks } from '@/lib/data';
 export async function generateStaticParams() {
   const books = await getBooks();
   return books.map((book) => ({
-    slug: book.slug,
+    id: book.id,
   }));
 }
 
-export default async function BookPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
+export default async function BookPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const books = await getBooks();
-  return <ClientHome initialBookSlug={slug} books={books} />;
+  
+  return <ClientHome initialBookId={id} books={books} />;
 }

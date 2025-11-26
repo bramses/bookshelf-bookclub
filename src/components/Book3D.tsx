@@ -13,6 +13,25 @@ interface Book3DProps {
   scale?: number;
 }
 
+interface BookCoverProps {
+  imageUrl: string;
+  dominantColor: string;
+}
+
+function BookCover({ imageUrl, dominantColor }: BookCoverProps) {
+  const texture = useLoader(TextureLoader, imageUrl);
+  return (
+    <>
+      <meshStandardMaterial attach="material-0" color="white" roughness={0.8} metalness={0.1} /> {/* Right (Pages) */}
+      <meshStandardMaterial attach="material-1" color={dominantColor} roughness={0.8} metalness={0.1} /> {/* Left (Spine) */}
+      <meshStandardMaterial attach="material-2" color={dominantColor} roughness={0.8} metalness={0.1} /> {/* Top */}
+      <meshStandardMaterial attach="material-3" color={dominantColor} roughness={0.8} metalness={0.1} /> {/* Bottom */}
+      <meshStandardMaterial attach="material-4" map={texture} color="white" roughness={0.6} metalness={0.1} /> {/* Front (Cover) */}
+      <meshStandardMaterial attach="material-5" color={dominantColor} roughness={0.8} metalness={0.1} /> {/* Back */}
+    </>
+  );
+}
+
 export default function Book3D({ book, onClick, scale = 1 }: Book3DProps) {
   const meshRef = useRef<Mesh>(null);
   const [hovered, setHover] = useState(false);
@@ -23,7 +42,7 @@ export default function Book3D({ book, onClick, scale = 1 }: Book3DProps) {
   }, [book.title]);
   
   // Load texture if imageUrl exists
-  const texture = useLoader(TextureLoader, book.imageUrl || '');
+  // const texture = useLoader(TextureLoader, book.imageUrl || ''); // This line is removed as BookCover handles it
 
   useEffect(() => {
     if (book.imageUrl) {
@@ -53,8 +72,8 @@ export default function Book3D({ book, onClick, scale = 1 }: Book3DProps) {
       if (hovered) {
         meshRef.current.rotation.y += delta;
       } else {
-        // Return to original rotation smoothly
-        meshRef.current.rotation.y += (0 - meshRef.current.rotation.y) * delta * 2;
+        // Return to front cover (Math.PI shows the front face)
+        meshRef.current.rotation.y += (Math.PI - meshRef.current.rotation.y) * delta * 2;
       }
     }
   });
@@ -73,14 +92,7 @@ export default function Book3D({ book, onClick, scale = 1 }: Book3DProps) {
         {/* Material array: right, left, top, bottom, front, back */}
         
         {book.imageUrl ? (
-           <>
-             <meshStandardMaterial attach="material-0" color="white" roughness={0.8} metalness={0.1} /> {/* Right (Pages) */}
-             <meshStandardMaterial attach="material-1" color={dominantColor} roughness={0.8} metalness={0.1} /> {/* Left (Spine) */}
-             <meshStandardMaterial attach="material-2" color={dominantColor} roughness={0.8} metalness={0.1} /> {/* Top */}
-             <meshStandardMaterial attach="material-3" color={dominantColor} roughness={0.8} metalness={0.1} /> {/* Bottom */}
-             <meshStandardMaterial attach="material-4" map={texture} color="white" roughness={0.6} metalness={0.1} /> {/* Front (Cover) */}
-             <meshStandardMaterial attach="material-5" color={dominantColor} roughness={0.8} metalness={0.1} /> {/* Back */}
-           </>
+           <BookCover imageUrl={book.imageUrl} dominantColor={dominantColor} />
         ) : (
           <meshStandardMaterial color={book.color} roughness={0.8} metalness={0.1} />
         )}
