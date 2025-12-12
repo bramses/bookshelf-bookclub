@@ -63,8 +63,9 @@ DATABASE_URL="postgresql://user:password@host:port/database?schema=public"
     - You can use Vercel Postgres, Supabase, Neon, or any other Postgres provider.
 5.  **Database Migrations**: To ensure your database schema is up to date during deployment, update the **Build Command** in Vercel settings to:
     ```bash
-    npx prisma migrate deploy && next build
+    npx prisma migrate deploy && npm run build
     ```
+    *Note: `prisma generate` is automatically run during build.*
 6.  Deploy!
 
 #### Self-Hosting (Docker / Node.js)
