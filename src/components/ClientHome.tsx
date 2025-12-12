@@ -46,7 +46,7 @@ export default function ClientHome({ initialBookId, books }: ClientHomeProps) {
     <main className="main-container">
       <header className="app-header">
         <h1 className="app-title">Sixty Books a Year Book Club</h1>
-        <p className="app-subtitle">A 3D exploration of my reading journey</p>
+        <p className="app-subtitle">Check out the books were reading!</p>
       </header>
 
       <BookGrid books={books} onSelectBook={handleSelectBook} />

@@ -37,8 +37,52 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## Hosting
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Prerequisites
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Node.js**: Version 20 or higher.
+- **Database**: PostgreSQL database.
+
+### Environment Variables
+
+You need to set the following environment variables in your hosting provider's dashboard or a `.env` file:
+
+```env
+DATABASE_URL="postgresql://user:password@host:port/database?schema=public"
+```
+
+### Deployment
+
+#### Vercel (Recommended)
+
+1.  Push your code to a Git repository (GitHub, GitLab, Bitbucket).
+2.  Import the project into [Vercel](https://vercel.com).
+3.  Vercel will automatically detect Next.js.
+4.  Set the `DATABASE_URL` environment variable in the Vercel project settings.
+    - You can use Vercel Postgres, Supabase, Neon, or any other Postgres provider.
+5.  **Database Migrations**: To ensure your database schema is up to date during deployment, update the **Build Command** in Vercel settings to:
+    ```bash
+    npx prisma migrate deploy && next build
+    ```
+6.  Deploy!
+
+#### Self-Hosting (Docker / Node.js)
+
+1.  **Setup Environment**: Ensure `DATABASE_URL` is set.
+2.  **Install Dependencies**:
+    ```bash
+    npm install
+    ```
+3.  **Apply Migrations**:
+    ```bash
+    npx prisma migrate deploy
+    ```
+4.  **Build**:
+    ```bash
+    npm run build
+    ```
+5.  **Start**:
+    ```bash
+    npm start
+    ```
