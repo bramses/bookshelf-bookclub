@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Environment, PerspectiveCamera } from '@react-three/drei';
 import { ACESFilmicToneMapping, Color } from 'three';
@@ -24,12 +24,23 @@ function SceneSettings() {
 
 export default function ClientHome({ initialBookId, books }: ClientHomeProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [backgroundColor, setBackgroundColor] = useState('#f0f0f0');
   const [textColor, setTextColor] = useState('#000000');
   const [isListView, setIsListView] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<string>('all');
 
-  // Initialize from URL or default to first book
+  // Initialize from URL
+  useEffect(() => {
+    const userParam = searchParams.get('username');
+    if (userParam) {
+      setSelectedUser(userParam);
+      setIsListView(true); // Auto-switch to list view if filtering
+    }
+  }, [searchParams]);
+
+  // Initialize book from URL or default
   useEffect(() => {
     if (initialBookId) {
       const index = books.findIndex((b) => b.id === initialBookId);
@@ -38,6 +49,100 @@ export default function ClientHome({ initialBookId, books }: ClientHomeProps) {
       }
     }
   }, [initialBookId, books]);
+
+  // Extract unique users
+  const users = useMemo(() => {
+    const userMap = new Map<string, string>(); // username -> display name
+    
+    // Parse env var for display names
+    const envMapStr = process.env.NEXT_PUBLIC_USER_MAP;
+    if (envMapStr) {
+      try {
+        const parsed = JSON.parse(envMapStr);
+        Object.entries(parsed).forEach(([k, v]) => userMap.set(k, v as string));
+      } catch (e) {
+        console.error('Failed to parse NEXT_PUBLIC_USER_MAP', e);
+      }
+    }
+
+    const uniqueUsers = new Set<string>();
+    books.forEach(book => {
+      book.userBooks?.forEach(ub => {
+        if (ub.user.username) uniqueUsers.add(ub.user.username);
+      });
+    });
+
+    return Array.from(uniqueUsers).map(username => ({
+      username,
+      displayName: userMap.get(username) || username
+    })).sort((a, b) => a.displayName.localeCompare(b.displayName));
+  }, [books]);
+
+  // Filter and Group Books
+  const { filteredBooks, groupedBooks } = useMemo(() => {
+    if (selectedUser === 'all') {
+      return { filteredBooks: books, groupedBooks: null };
+    }
+
+    const userBooksList = books.filter(b => 
+      b.userBooks?.some(ub => ub.user.username === selectedUser)
+    );
+
+    // Grouping Logic
+    const groups: { title: string; books: Book[] }[] = [];
+    
+    // 1. Currently Reading
+    const reading = userBooksList.filter(b => 
+      b.userBooks?.some(ub => ub.user.username === selectedUser && (ub.status as any) === 'READING')
+    );
+    if (reading.length > 0) {
+      groups.push({ title: "Currently Reading", books: reading });
+    }
+
+    // 2. Finished/Dropped (Grouped by Month)
+    const others = userBooksList.filter(b => 
+      b.userBooks?.some(ub => ub.user.username === selectedUser && (ub.status as any) !== 'READING')
+    );
+
+    // Sort by end date desc
+    others.sort((a, b) => {
+      const dateA = a.userBooks?.find(ub => ub.user.username === selectedUser)?.endDate || a.createdAt;
+      const dateB = b.userBooks?.find(ub => ub.user.username === selectedUser)?.endDate || b.createdAt;
+      return new Date(dateB).getTime() - new Date(dateA).getTime();
+    });
+
+    const monthGroups = new Map<string, Book[]>();
+    others.forEach(book => {
+      const ub = book.userBooks?.find(u => u.user.username === selectedUser);
+      const dateStr = ub?.endDate || book.createdAt;
+      const date = new Date(dateStr);
+      const monthYear = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+      
+      if (!monthGroups.has(monthYear)) {
+        monthGroups.set(monthYear, []);
+      }
+      monthGroups.get(monthYear)?.push(book);
+    });
+
+    monthGroups.forEach((books, title) => {
+      groups.push({ title, books });
+    });
+
+    return { filteredBooks: userBooksList, groupedBooks: groups };
+  }, [books, selectedUser]);
+
+  const handleUserChange = (username: string) => {
+    setSelectedUser(username);
+    const params = new URLSearchParams(window.location.search);
+    if (username === 'all') {
+      params.delete('username');
+    } else {
+      params.set('username', username);
+    }
+    router.replace(`/?${params.toString()}`);
+  };
+
+  // ... (rest of keyboard/touch handlers)
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -150,21 +255,83 @@ export default function ClientHome({ initialBookId, books }: ClientHomeProps) {
         overflow: isListView ? 'auto' : 'hidden'
       }}
     >
-      <button 
-        className="list-view-toggle"
-        onClick={() => setIsListView(!isListView)}
-        style={{ borderColor: isListView ? '#e5e5e5' : 'rgba(255,255,255,0.3)' }}
-      >
-        {isListView ? '← Back to Book' : 'All Books'}
-      </button>
+      <div className="stripe-header" style={{ 
+        position: 'absolute', 
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        padding: '1.5rem', 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        flexWrap: 'wrap', // Allow wrapping on mobile
+        gap: '1rem', // Space between button and filters
+        zIndex: 10,
+        pointerEvents: 'none' // Let clicks pass through empty space
+      }}>
+        <button 
+          className="list-view-toggle"
+          onClick={() => setIsListView(!isListView)}
+          style={{ 
+            position: 'relative', // Override absolute from CSS
+            top: 'auto',
+            left: 'auto',
+            borderColor: isListView ? '#e5e5e5' : 'rgba(255,255,255,0.3)',
+            color: isListView ? '#000' : 'inherit',
+            pointerEvents: 'auto', // Re-enable clicks
+            flexShrink: 0
+          }}
+        >
+          {isListView ? '← Back to Book' : 'All Books'}
+        </button>
+
+        {isListView && (
+          <div className="user-filters" style={{ 
+            display: 'flex', 
+            gap: '1rem', 
+            flexWrap: 'wrap', // Allow filters to wrap
+            pointerEvents: 'auto',
+            justifyContent: 'flex-end'
+          }}>
+            <label style={{ cursor: 'pointer', fontWeight: selectedUser === 'all' ? 'bold' : 'normal' }}>
+              <input 
+                type="radio" 
+                name="user" 
+                value="all" 
+                checked={selectedUser === 'all'} 
+                onChange={() => handleUserChange('all')}
+                style={{ marginRight: '0.5rem' }}
+              />
+              All
+            </label>
+            {users.map(u => (
+              <label key={u.username} style={{ cursor: 'pointer', fontWeight: selectedUser === u.username ? 'bold' : 'normal' }}>
+                <input 
+                  type="radio" 
+                  name="user" 
+                  value={u.username} 
+                  checked={selectedUser === u.username} 
+                  onChange={() => handleUserChange(u.username)}
+                  style={{ marginRight: '0.5rem' }}
+                />
+                {u.displayName}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
 
       {isListView ? (
         <div style={{ paddingTop: '5rem' }}>
-          <BookGrid books={books} onSelectBook={handleBookSelect} />
+          <BookGrid 
+            books={filteredBooks} 
+            groups={groupedBooks}
+            onSelectBook={handleBookSelect} 
+          />
         </div>
       ) : (
         <div className="stripe-content">
-          {/* Book Section */}
+          {/* ... (Book3D and Details sections remain same) ... */}
           <div className="stripe-book-section">
             <Canvas 
               shadows 
@@ -245,6 +412,27 @@ export default function ClientHome({ initialBookId, books }: ClientHomeProps) {
           </div>
         </div>
       )}
+      <a 
+        href="https://github.com/bramses/bookshelf-bookclub" 
+        target="_blank" 
+        rel="noopener noreferrer"
+        style={{
+          position: 'fixed',
+          bottom: '1rem',
+          right: '1rem',
+          fontSize: '0.8rem',
+          opacity: 0.3,
+          color: isListView ? '#000' : textColor,
+          textDecoration: 'none',
+          zIndex: 100,
+          transition: 'opacity 0.2s',
+          fontWeight: 500
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+        onMouseLeave={(e) => e.currentTarget.style.opacity = '0.3'}
+      >
+        ★ Star on GitHub
+      </a>
     </main>
   );
 }
