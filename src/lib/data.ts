@@ -1,5 +1,6 @@
 import { prisma } from './db';
 import { ReadingStatus } from '@prisma/client';
+import { unstable_noStore as noStore } from 'next/cache';
 
 export type { ReadingStatus };
 
