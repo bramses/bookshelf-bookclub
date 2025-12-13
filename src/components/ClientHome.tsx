@@ -412,6 +412,27 @@ export default function ClientHome({ initialBookId, books }: ClientHomeProps) {
           </div>
         </div>
       )}
+      <a 
+        href="https://github.com/bramses/bookshelf-bookclub" 
+        target="_blank" 
+        rel="noopener noreferrer"
+        style={{
+          position: 'fixed',
+          bottom: '1rem',
+          right: '1rem',
+          fontSize: '0.8rem',
+          opacity: 0.3,
+          color: isListView ? '#000' : textColor,
+          textDecoration: 'none',
+          zIndex: 100,
+          transition: 'opacity 0.2s',
+          fontWeight: 500
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+        onMouseLeave={(e) => e.currentTarget.style.opacity = '0.3'}
+      >
+        ★ Star on GitHub
+      </a>
     </main>
   );
 }
