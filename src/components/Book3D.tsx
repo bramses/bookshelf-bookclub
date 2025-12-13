@@ -11,6 +11,7 @@ interface Book3DProps {
   book: Book;
   onClick?: () => void;
   scale?: number;
+  onColorDetected?: (color: string) => void;
 }
 
 interface BookCoverProps {
@@ -32,17 +33,9 @@ function BookCover({ imageUrl, dominantColor }: BookCoverProps) {
   );
 }
 
-export default function Book3D({ book, onClick, scale = 1 }: Book3DProps) {
+export default function Book3D({ book, onClick, scale = 1, onColorDetected }: Book3DProps) {
   const meshRef = useRef<Mesh>(null);
-  const [hovered, setHover] = useState(false);
   const [dominantColor, setDominantColor] = useState<string>(book.color);
-
-  useEffect(() => {
-    console.log('Book3D mounted', book.title);
-  }, [book.title]);
-  
-  // Load texture if imageUrl exists
-  // const texture = useLoader(TextureLoader, book.imageUrl || ''); // This line is removed as BookCover handles it
 
   useEffect(() => {
     if (book.imageUrl) {
@@ -53,28 +46,43 @@ export default function Book3D({ book, onClick, scale = 1 }: Book3DProps) {
         const colorThief = new ColorThief();
         try {
           const color = colorThief.getColor(img);
-          setDominantColor(`rgb(${color[0]}, ${color[1]}, ${color[2]})`);
+          const rgbString = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+          setDominantColor(rgbString);
+          if (onColorDetected) {
+            onColorDetected(rgbString);
+          }
         } catch (e) {
           console.error('Error getting dominant color', e);
+          if (onColorDetected) {
+            onColorDetected(book.color);
+          }
         }
       };
+      img.onerror = () => {
+         if (onColorDetected) {
+            onColorDetected(book.color);
+          }
+      }
     } else {
         setDominantColor(book.color);
+        if (onColorDetected) {
+            onColorDetected(book.color);
+        }
     }
-  }, [book.imageUrl, book.color]);
+  }, [book.imageUrl, book.color, onColorDetected]);
 
-  useFrame((state, delta) => {
+  useFrame((state) => {
     if (meshRef.current) {
       // Gentle floating animation
       meshRef.current.position.y = Math.sin(state.clock.elapsedTime) * 0.1;
       
-      // Rotate on hover
-      if (hovered) {
-        meshRef.current.rotation.y += delta;
-      } else {
-        // Return to front cover (Math.PI shows the front face)
-        meshRef.current.rotation.y += (Math.PI - meshRef.current.rotation.y) * delta * 2;
-      }
+      // Fiddle effect: Look at pointer
+      const targetRotationX = state.pointer.y * 0.2; // Tilt up/down
+      const targetRotationY = state.pointer.x * 0.4; // Tilt left/right
+      
+      // Smooth interpolation
+      meshRef.current.rotation.x += (targetRotationX - meshRef.current.rotation.x) * 0.1;
+      meshRef.current.rotation.y += (targetRotationY - meshRef.current.rotation.y) * 0.1;
     }
   });
 
@@ -83,8 +91,6 @@ export default function Book3D({ book, onClick, scale = 1 }: Book3DProps) {
       <mesh
         ref={meshRef}
         onClick={onClick}
-        onPointerOver={() => setHover(true)}
-        onPointerOut={() => setHover(false)}
         castShadow
         receiveShadow
       >
