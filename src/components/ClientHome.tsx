@@ -212,9 +212,31 @@ export default function ClientHome({ initialBookId, books }: ClientHomeProps) {
               {currentBook.author}
             </h2>
             <div className="stripe-divider" />
-            <p className="stripe-description">
-              {currentBook.description || "No description available."}
-            </p>
+            <div className="stripe-description">
+              {currentBook.description ? (
+                (() => {
+                  // Split into sentences (looking for . ! ? followed by space or end of string)
+                  const sentences = currentBook.description.match(/[^.!?]+[.!?]+(\s|$)/g) || [currentBook.description];
+                  const paragraphs: string[] = [];
+                  let currentParagraph = "";
+                  
+                  sentences.forEach((sentence, index) => {
+                    currentParagraph += sentence;
+                    // Create new paragraph every 4 sentences or at the end
+                    if ((index + 1) % 4 === 0 || index === sentences.length - 1) {
+                      paragraphs.push(currentParagraph.trim());
+                      currentParagraph = "";
+                    }
+                  });
+
+                  return paragraphs.map((p, i) => (
+                    <p key={i} style={{ marginBottom: '1em' }}>{p}</p>
+                  ));
+                })()
+              ) : (
+                "No description available."
+              )}
+            </div>
             
             <div style={{ marginTop: 'auto', opacity: 0.6, fontSize: '0.9rem', paddingTop: '2rem' }}>
               <p className="nav-hint-desktop">Use ↑ and ↓ keys to navigate</p>
