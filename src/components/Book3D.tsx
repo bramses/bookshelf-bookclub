@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
-import { Mesh, TextureLoader, Color } from 'three';
+import { Mesh, TextureLoader, Color, CanvasTexture, SRGBColorSpace } from 'three';
 import { Text } from '@react-three/drei';
 import { Book } from '@/lib/data';
 import ColorThief from 'colorthief';
@@ -19,17 +19,76 @@ interface BookCoverProps {
   dominantColor: string;
 }
 
+function makeHeightMap(img: HTMLImageElement): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d')!;
+  canvas.width = img.width;
+  canvas.height = img.height;
+
+  ctx.drawImage(img, 0, 0);
+  const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  for (let i = 0; i < data.data.length; i += 4) {
+    const r = data.data[i];
+    const g = data.data[i + 1];
+    const b = data.data[i + 2];
+    const v = (r + g + b) / 3; // grayscale
+    
+    // Boost contrast
+    const contrast = 1.5; // Reduced from 2.0 to avoid harsh clamping
+    const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+    const c = factor * (v - 128) + 128;
+
+    data.data[i] = data.data[i + 1] = data.data[i + 2] = c;
+  }
+
+  ctx.putImageData(data, 0, 0);
+  return canvas;
+}
+
 function BookCover({ imageUrl, dominantColor }: BookCoverProps) {
   const texture = useLoader(TextureLoader, imageUrl);
+  texture.colorSpace = SRGBColorSpace;
+  
+  const [bumpMap, setBumpMap] = useState<CanvasTexture | null>(null);
+
+  useEffect(() => {
+    if (imageUrl) {
+      const img = new Image();
+      img.crossOrigin = 'Anonymous';
+      img.src = imageUrl;
+      img.onload = () => {
+        const canvas = makeHeightMap(img);
+        const bump = new CanvasTexture(canvas);
+        setBumpMap(bump);
+      };
+    }
+  }, [imageUrl]);
+
+  const spineColor = useMemo(() => new Color(dominantColor).multiplyScalar(0.75), [dominantColor]);
+  const pageColor = "#f7f4ec"; // Stripe-style warm white
+
   return (
-    <>
-      <meshStandardMaterial attach="material-0" color="white" roughness={0.8} metalness={0.1} /> {/* Right (Pages) */}
-      <meshStandardMaterial attach="material-1" color={dominantColor} roughness={0.8} metalness={0.1} /> {/* Left (Spine) */}
-      <meshStandardMaterial attach="material-2" color={dominantColor} roughness={0.8} metalness={0.1} /> {/* Top */}
-      <meshStandardMaterial attach="material-3" color={dominantColor} roughness={0.8} metalness={0.1} /> {/* Bottom */}
-      <meshStandardMaterial attach="material-4" map={texture} color="white" roughness={0.6} metalness={0.1} /> {/* Front (Cover) */}
-      <meshStandardMaterial attach="material-5" color={dominantColor} roughness={0.8} metalness={0.1} /> {/* Back */}
-    </>
+    <mesh castShadow receiveShadow>
+      {/* Increase segments for displacement map */}
+      <boxGeometry args={[1, 1.4, 0.2, 32, 32, 1]} />
+      <meshStandardMaterial attach="material-0" color={pageColor} roughness={0.9} /> {/* Right (Pages) */}
+      <meshStandardMaterial attach="material-1" color={spineColor} roughness={0.6} /> {/* Left (Spine) */}
+      <meshStandardMaterial attach="material-2" color={spineColor} roughness={0.6} /> {/* Top */}
+      <meshStandardMaterial attach="material-3" color={spineColor} roughness={0.6} /> {/* Bottom */}
+      <meshStandardMaterial 
+        attach="material-4" 
+        map={texture} 
+        displacementMap={bumpMap || undefined}
+        displacementScale={0.05}
+        bumpMap={bumpMap || undefined}
+        bumpScale={0.02}
+        color="white" 
+        roughness={0.55} 
+        metalness={0.02} 
+      /> {/* Front (Cover) */}
+      <meshStandardMaterial attach="material-5" color={dominantColor} roughness={0.6} /> {/* Back */}
+    </mesh>
   );
 }
 
@@ -74,33 +133,33 @@ export default function Book3D({ book, onClick, scale = 1, onColorDetected }: Bo
   useFrame((state) => {
     if (meshRef.current) {
       // Gentle floating animation
-      meshRef.current.position.y = Math.sin(state.clock.elapsedTime) * 0.1;
+      meshRef.current.position.y = Math.sin(state.clock.elapsedTime) * 0.05;
       
       // Fiddle effect: Look at pointer
-      const targetRotationX = state.pointer.y * 0.2; // Tilt up/down
-      const targetRotationY = state.pointer.x * 0.4; // Tilt left/right
+      const targetRotationX = state.pointer.y * 0.15; // Tilt up/down
+      const targetRotationY = state.pointer.x * 0.3; // Tilt left/right
       
       // Smooth interpolation
-      meshRef.current.rotation.x += (targetRotationX - meshRef.current.rotation.x) * 0.1;
-      meshRef.current.rotation.y += (targetRotationY - meshRef.current.rotation.y) * 0.1;
+      meshRef.current.rotation.x += (targetRotationX - meshRef.current.rotation.x) * 0.08;
+      meshRef.current.rotation.y += (targetRotationY - meshRef.current.rotation.y) * 0.08;
     }
   });
 
   return (
     <group scale={scale}>
-      <mesh
+      <group
         ref={meshRef}
         onClick={onClick}
-        castShadow
-        receiveShadow
       >
-        <boxGeometry args={[1, 1.4, 0.2]} />
         {/* Material array: right, left, top, bottom, front, back */}
         
         {book.imageUrl ? (
            <BookCover imageUrl={book.imageUrl} dominantColor={dominantColor} />
         ) : (
-          <meshStandardMaterial color={book.color} roughness={0.8} metalness={0.1} />
+          <mesh castShadow receiveShadow>
+            <boxGeometry args={[1, 1.4, 0.2]} />
+            <meshStandardMaterial color={book.color} roughness={0.6} metalness={0.1} />
+          </mesh>
         )}
         
         {/* Spine Text */}
@@ -114,6 +173,7 @@ export default function Book3D({ book, onClick, scale = 1, onColorDetected }: Bo
             maxWidth={1.3}
             textAlign="center"
             lineHeight={1}
+            fillOpacity={0.9}
           >
             {book.title}
           </Text>
@@ -146,7 +206,7 @@ export default function Book3D({ book, onClick, scale = 1, onColorDetected }: Bo
           </Text>
         </group>
         )}
-      </mesh>
+      </group>
     </group>
   );
 }

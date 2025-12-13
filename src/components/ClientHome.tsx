@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
+import { Environment, PerspectiveCamera } from '@react-three/drei';
+import { ACESFilmicToneMapping, Color } from 'three';
 import Book3D from '@/components/Book3D';
 import BookGrid from '@/components/BookGrid';
 import { userBooks, Book } from '@/lib/data';
@@ -10,6 +12,14 @@ import { userBooks, Book } from '@/lib/data';
 interface ClientHomeProps {
   initialBookId?: string;
   books: Book[];
+}
+
+function SceneSettings() {
+  const { scene } = useThree();
+  useEffect(() => {
+    scene.environmentIntensity = 0.35;
+  }, [scene]);
+  return null;
 }
 
 export default function ClientHome({ initialBookId, books }: ClientHomeProps) {
@@ -58,7 +68,13 @@ export default function ClientHome({ initialBookId, books }: ClientHomeProps) {
   const currentBook = books[currentIndex];
 
   const handleColorDetected = (color: string) => {
-    setBackgroundColor(color);
+    // Desaturate background color
+    const c = new Color(color);
+    const hsl = { h: 0, s: 0, l: 0 };
+    c.getHSL(hsl);
+    c.setHSL(hsl.h, hsl.s * 0.6, hsl.l); // Reduce saturation by 40%
+    
+    setBackgroundColor(c.getStyle());
     
     // Simple contrast check
     let r = 0, g = 0, b = 0;
@@ -150,17 +166,35 @@ export default function ClientHome({ initialBookId, books }: ClientHomeProps) {
         <div className="stripe-content">
           {/* Book Section */}
           <div className="stripe-book-section">
-            <Canvas shadows camera={{ position: [0, 0, 4], fov: 45 }}>
-              <ambientLight intensity={0.8} />
-              <spotLight 
-                position={[5, 8, 5]} 
-                angle={0.4} 
-                penumbra={1} 
-                intensity={2.5} 
-                castShadow 
-                shadow-bias={-0.0001}
+            <Canvas 
+              shadows 
+              gl={{ 
+                toneMapping: ACESFilmicToneMapping, 
+                toneMappingExposure: 0.7 
+              }}
+            >
+              <PerspectiveCamera makeDefault fov={28} position={[0, 0, 6]} />
+              <SceneSettings />
+              
+              {/* Key Light - Grazing angle, high intensity */}
+              <directionalLight
+                position={[2.5, 3, 4]}
+                intensity={2.7}
+                castShadow
+                shadow-mapSize={[2048, 2048]}
+                shadow-bias={-0.00015}
               />
-              <pointLight position={[-5, 2, -5]} intensity={0.5} color="#fff0dd" />
+
+              {/* Rim Light - Edge separation */}
+              <directionalLight
+                position={[0, 1.5, 2]}
+                intensity={0.6}
+                color="#ffffff"
+              />
+
+              {/* Environment - Soft fill */}
+              {/* <Environment preset="studio" /> */}
+
               <Book3D 
                 book={currentBook} 
                 scale={1.7} 
